@@ -57,6 +57,8 @@ pub mod file;
 pub mod fs;
 pub mod gpio;
 pub mod hwrng;
+#[cfg(CONFIG_I2C)]
+pub mod i2c;
 pub mod irq;
 pub mod kasync;
 pub mod miscdev;
