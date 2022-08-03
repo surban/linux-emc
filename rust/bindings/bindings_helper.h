@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <linux/errname.h>
 #include <linux/file.h>
+#include <linux/firmware.h>
 #include <linux/fs.h>
 #include <linux/fs_parser.h>
 #include <linux/gpio/driver.h>

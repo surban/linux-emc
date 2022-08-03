@@ -6,9 +6,6 @@
 //!
 //! Reference: <https://docs.kernel.org/i2c/index.html>
 
-#![allow(unused_imports)]
-#![allow(dead_code)]
-
 use core::ffi::c_void;
 
 use crate::{
@@ -20,7 +17,7 @@ use crate::{
     str::{BStr, CStr},
     to_result,
     types::PointerWrapper,
-    ThisModule,
+    Error, ThisModule,
 };
 
 /// A registration of an I2C driver.
@@ -257,7 +254,7 @@ pub trait Driver {
         Ok(())
     }
 }
-//
+
 /// Represents an I2C slave device.
 ///
 /// # Invariants
@@ -290,6 +287,107 @@ impl Client {
     pub fn addr(&self) -> u16 {
         // SAFETY: By the type invariants, we know that `self.ptr` is non-null and valid.
         unsafe { (*self.ptr).addr }
+    }
+
+    /// SMBus receive byte.
+    ///
+    /// Reads a single byte from the device, without specifying a device register.
+    pub fn smbus_read_byte(&self) -> Result<u8> {
+        to_i2c_byte_result(unsafe { bindings::i2c_smbus_read_byte(self.ptr) })
+    }
+
+    /// SMBus send byte.
+    ///
+    /// Sends a single byte to the device, without specifying a device register.
+    pub fn smbus_write_byte(&self, value: u8) -> Result {
+        to_i2c_result(unsafe { bindings::i2c_smbus_write_byte(self.ptr, value) })
+    }
+
+    /// SMBus read byte.
+    ///
+    /// Reads a single byte from the device, from a designated register.
+    pub fn smbus_read_byte_data(&self, command: u8) -> Result<u8> {
+        to_i2c_byte_result(unsafe { bindings::i2c_smbus_read_byte_data(self.ptr, command) })
+    }
+
+    /// SMBus write byte.
+    ///
+    /// Writes a single byte to the device, to a designated register.
+    pub fn smbus_write_byte_data(&self, command: u8, value: u8) -> Result {
+        to_i2c_result(unsafe { bindings::i2c_smbus_write_byte_data(self.ptr, command, value) })
+    }
+
+    /// SMBus read word.
+    ///
+    /// Reads a word (16 bits) from the device, from a designated register.
+    pub fn smbus_read_word_data(&self, command: u8) -> Result<u16> {
+        to_i2c_word_result(unsafe { bindings::i2c_smbus_read_word_data(self.ptr, command) })
+    }
+
+    /// SMBus write word.
+    ///
+    /// Writes a word (16 bits) to the device, to a designated register.
+    pub fn smbus_write_word_data(&self, command: u8, value: u16) -> Result {
+        to_i2c_result(unsafe { bindings::i2c_smbus_write_word_data(self.ptr, command, value) })
+    }
+
+    /// I2C block read.
+    ///
+    /// Reads a block of bytes from the device, from a designated register.
+    ///
+    /// Returns the number of read bytes.
+    pub fn smbus_read_i2c_block_data(&self, command: u8, values: &mut [u8]) -> Result<usize> {
+        let ret = unsafe {
+            bindings::i2c_smbus_read_i2c_block_data(
+                self.ptr,
+                command,
+                values.len() as u8,
+                values.as_mut_ptr(),
+            )
+        };
+        if ret >= 0 {
+            Ok(ret as usize)
+        } else {
+            Err(Error::from_kernel_errno(ret))
+        }
+    }
+
+    /// I2C block write.
+    ///
+    /// Writes a block of bytes to the device, to a designated register.
+    pub fn smbus_write_i2c_block_data(&self, command: u8, values: &[u8]) -> Result {
+        to_i2c_result(unsafe {
+            bindings::i2c_smbus_write_i2c_block_data(
+                self.ptr,
+                command,
+                values.len() as u8,
+                values.as_ptr(),
+            )
+        })
+    }
+}
+
+fn to_i2c_result(ret: i32) -> Result {
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(Error::from_kernel_errno(ret))
+    }
+}
+
+fn to_i2c_byte_result(ret: i32) -> Result<u8> {
+    if ret >= 0 {
+        Ok(ret as u8)
+    } else {
+        Err(Error::from_kernel_errno(ret))
+    }
+}
+
+fn to_i2c_word_result(ret: i32) -> Result<u16> {
+    if ret >= 0 {
+        Ok(ret as u16)
+    } else {
+        Err(Error::from_kernel_errno(ret))
     }
 }
 
