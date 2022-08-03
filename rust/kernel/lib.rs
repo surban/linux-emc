@@ -69,6 +69,8 @@ pub mod net;
 pub mod pages;
 pub mod power;
 pub mod revocable;
+#[cfg(CONFIG_RTC_CLASS)]
+pub mod rtc;
 pub mod security;
 pub mod str;
 pub mod task;

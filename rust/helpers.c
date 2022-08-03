@@ -22,6 +22,7 @@
 #include <linux/bug.h>
 #include <linux/build_bug.h>
 #include <linux/clk.h>
+#include <linux/device.h>
 #include <linux/errname.h>
 #include <linux/fs_parser.h>
 #include <linux/gfp.h>
@@ -35,6 +36,7 @@
 #include <linux/netdevice.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/rtc.h>
 #include <linux/sched/signal.h>
 #include <linux/security.h>
 #include <linux/skbuff.h>
@@ -667,6 +669,16 @@ int rust_helper_fs_parse(struct fs_context *fc,
 	return fs_parse(fc, desc, param, result);
 }
 EXPORT_SYMBOL_GPL(rust_helper_fs_parse);
+
+int rust_helper_devm_rtc_register_device(struct rtc_device *rtc) {
+	return devm_rtc_register_device(rtc);
+}
+EXPORT_SYMBOL_GPL(rust_helper_devm_rtc_register_device);
+
+void rust_helper_dev_set_drvdata(struct device *dev, void *data) {
+	dev_set_drvdata(dev, data);
+}
+EXPORT_SYMBOL_GPL(rust_helper_dev_set_drvdata);
 
 /*
  * We use `bindgen`'s `--size_t-is-usize` option to bind the C `size_t` type
