@@ -24,12 +24,12 @@ use crate::{
 };
 
 /// A registration of an I2C driver.
-pub type Registration<T> = driver::Registration<Adapter<T>>;
+pub type DriverRegistration<T> = driver::Registration<DriverAdapter<T>>;
 
 /// An adapter for the registration of I2C drivers.
-pub struct Adapter<T: Driver>(T);
+pub struct DriverAdapter<T: Driver>(T);
 
-impl<T: Driver> driver::DriverOps for Adapter<T> {
+impl<T: Driver> driver::DriverOps for DriverAdapter<T> {
     type RegType = bindings::i2c_driver;
 
     unsafe fn register(
@@ -71,7 +71,7 @@ impl<T: Driver> driver::DriverOps for Adapter<T> {
     }
 }
 
-impl<T: Driver> Adapter<T> {
+impl<T: Driver> DriverAdapter<T> {
     fn get_id_info(client: &Client) -> Option<&'static T::IdInfo> {
         let table = T::OF_DEVICE_ID_TABLE?;
 
@@ -126,7 +126,7 @@ impl<T: Driver> Adapter<T> {
 
         // SAFETY: The id table has a static lifetime, so `ptr` is guaranteed to be valid for read.
         unsafe { (&*ptr).as_ref() }
-    }    
+    }
 
     extern "C" fn probe_new_callback(pclient: *mut bindings::i2c_client) -> core::ffi::c_int {
         from_kernel_result! {
@@ -205,7 +205,7 @@ unsafe impl const driver::RawDeviceId for DeviceId {
         let mut id = Self::ZERO;
         let mut i = 0;
         while i < name.len() {
-            // If `compatible` does not fit in `id.compatible`, an "index out of bounds" build time
+            // If `name` does not fit in `id.name`, an "index out of bounds" build time
             // error will be triggered.
             id.name[i] = name[i] as _;
             i += 1;
@@ -244,7 +244,7 @@ pub trait Driver {
     /// Called when a new platform device is added or discovered.
     /// Implementers should attempt to initialize the device here.
     fn probe(
-        dev: &mut Client,
+        client: &mut Client,
         id_info: Option<&Self::IdInfo>,
         device_id_info: Option<&Self::DeviceIdInfo>,
     ) -> Result<Self::Data>;
@@ -301,38 +301,40 @@ unsafe impl device::RawDevice for Client {
     }
 }
 
-//
-// /// Declares a kernel module that exposes a single I2C driver.
-// ///
-// /// The `type` argument should be a type which implements the [`FileOpener`] trait. Also accepts
-// /// various forms of kernel metadata.
-// ///
-// /// C header: [`include/linux/moduleparam.h`](../../../include/linux/moduleparam.h)
-// ///
-// /// [`FileOpener`]: ../kernel/file_operations/trait.FileOpener.html
-// ///
-// /// # Examples
-// ///
-// /// ```ignore
-// /// use kernel::prelude::*;
-// ///
-// /// module_i2c_driver! {
-// ///     type: MyI2CDriver,
-// ///     name: b"my_i2cdev_kernel_module",
-// ///     author: b"Author name",
-// ///     description: b"My very own I2C device driver!",
-// ///     license: b"GPL",
-// /// }
-// ///
-// /// #[derive(Default)]
-// /// struct MyFile;
-// ///
-// /// #[vtable]
-// /// impl kernel::file::Operations for MyFile {}
-// /// ```
-// #[macro_export]
-// macro_rules! module_i2c_driver {
-//     ($($f:tt)*) => {
-//         $crate::module_driver!(<T>, $crate::i2c::Adapter<T>, { $($f)* });
-//     };
-// }
+/// Declares a kernel module that exposes a single I2C device driver.
+///
+/// The `type` argument should be a type which implements the [`Driver`] trait. Also accepts
+/// various forms of kernel metadata.
+///
+/// C header: [`include/linux/moduleparam.h`](../../../include/linux/moduleparam.h)
+///
+/// # Examples
+///
+/// ```ignore
+/// use kernel::prelude::*;
+///
+/// struct MyDriver;
+/// impl i2c::Driver for MyDriver {
+///     // [...]
+/// #   fn probe(_client: &mut Client,
+/// #            _id_info: Option<&Self::IdInfo>,
+/// #            _device_id_info: Option<&Self::DeviceIdInfo>) -> Result
+/// #   {
+/// #       Ok(())
+/// #   }
+/// }
+///
+/// module_i2c_driver! {
+///     type: MyDriver,
+///     name: b"my_i2cdev_kernel_module",
+///     author: b"Author name",
+///     description: b"My very own I2C device driver!",
+///     license: b"GPL",
+/// }
+/// ```
+#[macro_export]
+macro_rules! module_i2c_driver {
+    ($($f:tt)*) => {
+        $crate::module_driver!(<T>, $crate::i2c::DriverAdapter<T>, { $($f)* });
+    };
+}
